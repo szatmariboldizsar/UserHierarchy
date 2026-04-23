@@ -1,0 +1,77 @@
+﻿@using DAL.DTOs
+@using DAL.Models
+@using DAL.Services.Interfaces
+@using UserHierarchyBlazor.Services
+@inject DragAndDropService DragAndDropService
+@inject IUserService userService
+<li draggable="true"
+    ondragover="event.preventDefault();"
+    @ondragstart="HandleDragStart"
+    @ondrop="HandleDrop"
+    class="tree-node">
+
+    <span @onclick="() => Node.IsExpanded = !Node.IsExpanded" >
+        @(Node.Children.Any() ? (Node.IsExpanded ? "▼ " : "▶ ") : "• ")
+        @Node.Root?.FullName
+    </span>
+
+    @if (Node.IsExpanded && Node.Children.Any())
+    {
+        <ul>
+            @foreach (var child in Node.Children)
+            {
+@*                 <div class="drop-zone"
+                     @ondrop="() => HandleDropAt(index)"
+                     ondragover="event.preventDefault();"
+                     @ondragenter="e => DraggingOverIndex = index"
+                     @ondragleave="e => DraggingOverIndex = -1">
+                </div> *@
+
+                <TreeItem Node="child" Index="index" OnTreeChanged="OnTreeChanged" />
+
+@*                 @if (index == Node.Children.Count - 1)
+                {
+                    <div class="drop-zone"
+                         @ondrop="() => HandleDropAt(index + 1)"
+                         ondragover="event.preventDefault();">
+                    </div>
+                } *@
+            }
+        </ul>
+    }
+</li>
+
+@code {
+    [Parameter]
+    public required UserNode Node { get; set; }
+
+    [Parameter]
+    public EventCallback OnTreeChanged { get; set; }
+
+    private void HandleDragStart()
+    {
+        if (Node.Root == null) return; // Prevent dragging the root node
+        DragAndDropService.DraggedNode = Node;
+    }
+
+    private async Task HandleDrop()
+    {
+        if (DragAndDropService.DraggedNode == null || DragAndDropService.DraggedNode == Node) return;
+
+
+        UserHierarchy userHierarchy = new UserHierarchy()
+        {
+                ParentId = Node.Root?.Id,
+                // SortOrder = Node.Children.
+        };
+        await userService.MoveUser(DragAndDropService.DraggedNode.Root, userHierarchy);
+
+        await OnTreeChanged.InvokeAsync();
+        DragAndDropService.DraggedNode = null;
+    }
+
+    private async Task TreeHasChanged()
+    {
+        await OnTreeChanged.InvokeAsync();
+    }
+}

@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="DAL/DAL.csproj" />
+  <Project Path="UserHierarchyBlazor/UserHierarchyBlazor.csproj" Id="5cdcd870-089a-44fd-aaeb-4ad3524d8f77" />
 </Solution>

@@ -1,0 +1,26 @@
+﻿@page "/"
+@using DAL.DTOs
+@using DAL.Models
+@using DAL.Services
+@using UserHierarchyBlazor.Components.Shared
+@inject UserService userService
+
+<h3>User Hierarchy</h3>
+
+<TreeItem Node="rootNode" OnTreeChanged="RefreshTree" />
+
+
+@code {
+    private UserNode? rootNode;
+
+    protected async override Task OnInitializedAsync()
+    {
+        rootNode = await userService.GetUserNodesAsync();
+    }
+
+    private async Task RefreshTree()
+    {
+        rootNode = await userService.GetUserNodesAsync();
+        StateHasChanged();
+    }
+}
