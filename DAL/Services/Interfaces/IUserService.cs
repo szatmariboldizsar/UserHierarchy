@@ -13,6 +13,8 @@ namespace DAL.Services.Interfaces
 
         Task<bool> MoveUser(User user, UserHierarchy newUserHierarchy);
 
+        Task<bool> UpdateUserAsync(User user);
+
         Task<UserNode> GetUserNodesAsync();
 
         Task<UserNode> GetUserNodeForUserAsync(User? user);
