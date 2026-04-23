@@ -1,9 +1,9 @@
 ﻿@page "/"
 @using DAL.DTOs
 @using DAL.Models
-@using DAL.Services
+@using DAL.Services.Interfaces
 @using UserHierarchyBlazor.Components.Shared
-@inject UserService userService
+@inject IUserService userService
 
 <h3>User Hierarchy</h3>
 

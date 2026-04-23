@@ -13,7 +13,7 @@ builder.Services.AddRazorComponents()
 
 var conn = builder.Configuration.GetConnectionString("Default");
 builder.Services.AddDbContext<AppDbContext>(options => options.UseSqlServer(conn));
-builder.Services.AddSingleton<IUserService, UserService>();
+builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<DragAndDropService>();
 
 var app = builder.Build();
