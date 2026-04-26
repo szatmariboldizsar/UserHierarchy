@@ -1,0 +1,10 @@
+﻿.drop-zone {
+    height: 30px; /* For vertical list */
+    transition: background-color 0.2s;
+}
+
+.drop-zone.active {
+    background-color: #512bd4; /* MAUI Purple */
+    height: 50px;
+    border-radius: 4px;
+}

@@ -4,38 +4,43 @@
 @using UserHierarchyBlazor.Services
 @inject DragAndDropService DragAndDropService
 @inject IUserService userService
-<li draggable="true"
-    ondragover="event.preventDefault();"
-    @ondragstart="HandleDragStart"
-    @ondrop="HandleDrop"
-    class="tree-node">
+@rendermode InteractiveServer
 
-    <span @onclick="() => Node.IsExpanded = !Node.IsExpanded" >
+<li class="tree-node">
+
+    <div draggable="@(Node.Root != null ? "true" : "false")"
+        @ondragstart="HandleDragStart"
+        @ondrop="HandleDropOnNode"
+        @ondragover:preventDefault
+        @onclick="() => Node.IsExpanded = !Node.IsExpanded" >
         @(Node.Children.Any() ? (Node.IsExpanded ? "▼ " : "▶ ") : "• ")
         @Node.Root?.FullName
-    </span>
+    </div>
 
-    @if (Node.IsExpanded && Node.Children.Any())
+    @if (Node.IsExpanded)
     {
         <ul>
-            @foreach (var child in Node.Children)
+            @for (int i = 0; i < Node.Children.Count; i++)
             {
-@*                 <div class="drop-zone"
-                     @ondrop="() => HandleDropAt(index)"
-                     ondragover="event.preventDefault();"
-                     @ondragenter="e => DraggingOverIndex = index"
-                     @ondragleave="e => DraggingOverIndex = -1">
-                </div> *@
+                int currentIndex = i;
+                <div class="@GetDropZoneClass(currentIndex)"
+                     @ondrop="() => HandleDropAt(currentIndex)"
+                     @ondragenter="() => OnDragEnter(currentIndex)"
+                    @ondragleave="OnDragLeave"
+                     @ondragover:preventDefault>
+                </div>
 
-                <TreeItem Node="child" Index="index" OnTreeChanged="OnTreeChanged" />
+                <TreeItem Node="Node.Children[i]" OnTreeChanged="OnTreeChanged" />
 
-@*                 @if (index == Node.Children.Count - 1)
+                @if (i == Node.Children.Count - 1)
                 {
-                    <div class="drop-zone"
-                         @ondrop="() => HandleDropAt(index + 1)"
-                         ondragover="event.preventDefault();">
+                    <div class="@GetDropZoneClass(currentIndex + 1)"
+                         @ondrop="() => HandleDropAt(currentIndex + 1)"
+                         @ondragenter="() => OnDragEnter(currentIndex + 1)"
+                         @ondragleave="OnDragLeave"
+                         @ondragover:preventDefault>
                     </div>
-                } *@
+                }
             }
         </ul>
     }
@@ -48,30 +53,49 @@
     [Parameter]
     public EventCallback OnTreeChanged { get; set; }
 
+    public int DraggingOverIndex { get; set; } = -1;
+
     private void HandleDragStart()
     {
         if (Node.Root == null) return; // Prevent dragging the root node
         DragAndDropService.DraggedNode = Node;
     }
 
-    private async Task HandleDrop()
+    private async Task HandleDropOnNode()
     {
-        if (DragAndDropService.DraggedNode == null || DragAndDropService.DraggedNode == Node) return;
-
-
-        UserHierarchy userHierarchy = new UserHierarchy()
-        {
-                ParentId = Node.Root?.Id,
-                // SortOrder = Node.Children.
-        };
-        await userService.MoveUser(DragAndDropService.DraggedNode.Root, userHierarchy);
-
-        await OnTreeChanged.InvokeAsync();
-        DragAndDropService.DraggedNode = null;
+        await HandleDropAt(Node.Children.Count); // Drop on the node itself means adding as the last child
     }
 
     private async Task TreeHasChanged()
     {
         await OnTreeChanged.InvokeAsync();
     }
+
+    private async Task HandleDropAt(int index)
+    {
+        if (DragAndDropService.DraggedNode == null || DragAndDropService.DraggedNode == Node) return;
+
+        if (index == Node.Children.Count && Node.Children.Contains(DragAndDropService.DraggedNode))
+        {
+            index -= 1; // Adjust index if dragging within the same parent and dropping at the end
+        }
+
+        UserHierarchy userHierarchy = new UserHierarchy()
+        {
+            ParentId = Node.Root?.Id,
+            SortOrder = index
+        };
+        await userService.MoveUser(DragAndDropService.DraggedNode.Root, userHierarchy);
+
+        await OnTreeChanged.InvokeAsync();
+        DragAndDropService.DraggedNode = null;
+        DraggingOverIndex = -1;
+    }
+
+    private void OnDragEnter(int index) => DraggingOverIndex = index;
+    private void OnDragLeave() => DraggingOverIndex = -1;
+
+    // Helper to get CSS class for the drop zone
+    private string GetDropZoneClass(int index) =>
+        DraggingOverIndex == index ? "drop-zone active" : "drop-zone";
 }
