@@ -8,11 +8,13 @@ namespace DAL.DTOs
     public class UserNode
     {
         public readonly User? Root;
+        public readonly UserHierarchy? UserHierarchy;
         public List<UserNode> Children { get; set; }
         public bool IsExpanded { get; set; }
-        public UserNode(User? root)
+        public UserNode(User? root, UserHierarchy? userHierarchy)
         {   
             Root = root;
+            UserHierarchy = userHierarchy;
             Children = new List<UserNode>();
             IsExpanded = true;
         }

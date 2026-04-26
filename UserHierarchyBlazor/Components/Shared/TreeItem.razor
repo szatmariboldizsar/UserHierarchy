@@ -126,9 +126,15 @@
     {
         if (DragAndDropService.DraggedNode == null || DragAndDropService.DraggedNode == Node) return;
 
-        if (index == Node.Children.Count && Node.Children.Contains(DragAndDropService.DraggedNode))
+        if (Node.Root?.Id == DragAndDropService.DraggedNode.UserHierarchy.ParentId && index > DragAndDropService.DraggedNode.UserHierarchy.SortOrder)
         {
-            index -= 1; // Adjust index if dragging within the same parent and dropping at the end
+            index -= 1; // Adjust index if dragging within the same parent to higher position
+        }
+
+        if (DragAndDropService.DraggedNode.UserHierarchy.SortOrder == index)
+        {
+            DraggingOverIndex = -1;
+            return;
         }
 
         UserHierarchy userHierarchy = new UserHierarchy()

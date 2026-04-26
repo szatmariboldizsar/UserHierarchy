@@ -177,7 +177,8 @@ namespace DAL.Services
         // Recursively builds a UserNode tree for a given user, including all of its children.
         public async Task<UserNode> GetUserNodeForUserAsync(User? user)
         {
-            UserNode userNode = new UserNode(user);
+            UserHierarchy? nodeHierarchy = user != null ? await _dbContext.UserHierarchy.FirstOrDefaultAsync(uh => uh.UserId == user.Id) : null;
+            UserNode userNode = new UserNode(user, nodeHierarchy);
             long? parentId = user?.Id;
             List<UserHierarchy> userHierarchies = await _dbContext.UserHierarchy.Where(uh => uh.ParentId == parentId).OrderBy(uh => uh.SortOrder).ToListAsync();
             foreach (UserHierarchy userHierarchy in userHierarchies)
