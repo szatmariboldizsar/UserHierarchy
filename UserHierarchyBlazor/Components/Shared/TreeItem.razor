@@ -9,17 +9,31 @@
 
 <Modal @ref="editModal" Title="Edit User">
     <BodyTemplate>
-        <div class="mb-3">Username:</div>
-        <TextInput @bind-Value="Node.Root.Username" Placeholder="Enter Username" />
-        <div class="mb-3">Full Name:</div>
-        <TextInput @bind-Value="Node.Root.FullName" Placeholder="Enter Full Name" />
-        <div class="mb-3">Email:</div>
-        <TextInput @bind-Value="Node.Root.Email" Placeholder="Enter Email" />
+        <EditForm Model="Node.Root" OnValidSubmit="SaveUser">
+            <DataAnnotationsValidator />
+            
+            <label>Username:</label>
+            <div class="input-validation">
+                <TextInput @bind-Value="Node.Root.Username" Placeholder="Enter Username" />
+                <ValidationMessage For="@(() => Node.Root.Username)" />
+            </div>
+            <label>Full Name:</label>
+            <div class="mb-1 input-validation">
+                <TextInput @bind-Value="Node.Root.FullName" Placeholder="Enter Full Name" />
+                <ValidationMessage For="@(() => Node.Root.FullName)" />
+            </div>
+            <label>Email:</label>
+            <div class="mb-1 input-validation">
+                <TextInput @bind-Value="Node.Root.Email" Placeholder="Enter Email" />
+                <ValidationMessage For="@(() => Node.Root.Email)" />
+            </div>
+
+            <div class="mt-4 d-flex justify-content-end border-top pt-3">
+                <Button Color="ButtonColor.Secondary" @onclick="HideEditUserModal" Class="me-2">Cancel</Button>
+                <Button Color="ButtonColor.Primary" Type="ButtonType.Submit">Save</Button>
+            </div>
+        </EditForm>
     </BodyTemplate>
-    <FooterTemplate>
-        <Button Color="ButtonColor.Secondary" @onclick="HideEditUserModal">Cancel</Button>
-        <Button Color="ButtonColor.Primary" @onclick="SaveUser">Save</Button>
-    </FooterTemplate>
 </Modal>
 
 <ConfirmDialog @ref="deleteDialog" />
@@ -27,10 +41,12 @@
 <li class="node">
 
     <div draggable="@(Node.Root != null ? "true" : "false")"
+        class="@GetDropZoneNodeClass()"
         @ondragstart="HandleDragStart"
         @ondrop="HandleDropOnNode"
-        @ondragover:preventDefault
-        @onclick="() => Node.IsExpanded = !Node.IsExpanded" >
+        @ondragenter="() => OnDragEnterNode()"
+        @ondragleave="OnDragLeaveNode"
+        @ondragover:preventDefault>
         @if (Node.Root != null)
         {
             @if (IsLastChild)
@@ -47,8 +63,14 @@
 
         @if (Node.Children.Any())
         {
-            @(Node.IsExpanded ? " ▼ " : " ▶ ")
-            
+            @if (Node.IsExpanded)
+            {
+                <Icon Class="btn" Name="IconName.ChevronDown" @onclick="() => Node.IsExpanded = !Node.IsExpanded" />
+            }
+            else
+            {
+                <Icon Class="btn" Name="IconName.ChevronRight" @onclick="() => Node.IsExpanded = !Node.IsExpanded" />
+            }
         }
         @if (Node.Root != null)
         {
@@ -66,7 +88,7 @@
                 <div class="@GetDropZoneClass(currentIndex)"
                      @ondrop="() => HandleDropAt(currentIndex)"
                      @ondragenter="() => OnDragEnter(currentIndex)"
-                    @ondragleave="OnDragLeave"
+                     @ondragleave="OnDragLeave"
                      @ondragover:preventDefault>
                 </div>
 
@@ -99,6 +121,9 @@
     public bool IsLastChild { get; set; }
 
     public int DraggingOverIndex { get; set; } = -1;
+    public UserNode? DraggingOverNode { get; set; } = null;
+
+    private EditContext? editContext;
 
     private ConfirmDialog deleteDialog = default!;
 
@@ -124,15 +149,21 @@
 
     private async Task HandleDropAt(int index)
     {
-        if (DragAndDropService.DraggedNode == null || DragAndDropService.DraggedNode == Node) return;
+        if (DragAndDropService.DraggedNode == null || DragAndDropService.DraggedNode == Node)
+        {
+            DraggingOverNode = null;
+            DraggingOverIndex = -1;
+            return;
+        }
 
         if (Node.Root?.Id == DragAndDropService.DraggedNode.UserHierarchy.ParentId && index > DragAndDropService.DraggedNode.UserHierarchy.SortOrder)
         {
             index -= 1; // Adjust index if dragging within the same parent to higher position
         }
 
-        if (DragAndDropService.DraggedNode.UserHierarchy.SortOrder == index)
+        if (Node.Root?.Id == DragAndDropService.DraggedNode.UserHierarchy.ParentId && DragAndDropService.DraggedNode.UserHierarchy.SortOrder == index)
         {
+            DraggingOverNode = null;
             DraggingOverIndex = -1;
             return;
         }
@@ -142,23 +173,54 @@
             ParentId = Node.Root?.Id,
             SortOrder = index
         };
-        await userService.MoveUserAsync(DragAndDropService.DraggedNode.Root, userHierarchy);
+        bool success = await userService.MoveUserAsync(DragAndDropService.DraggedNode.Root, userHierarchy);
+
+        if (success)
+        {
+            ToastMessage toastMessage = new ToastMessage
+            {
+                Type = ToastType.Success,
+                Title = "Move User",
+                HelpText = $"{DateTime.Now}",
+                Message = $"User '{DragAndDropService.DraggedNode.Root.Username}' moved successfully! DateTime: {DateTime.Now}",
+            };
+            messages.Add(toastMessage);
+        }
+        else
+        {
+            ToastMessage toastMessage = new ToastMessage
+            {
+                Type = ToastType.Danger,
+                Title = "Move User",
+                HelpText = $"{DateTime.Now}",
+                Message = $"Failed to move user '{DragAndDropService.DraggedNode.Root.Username}'. DateTime: {DateTime.Now}",
+            };
+            messages.Add(toastMessage);
+        }
 
         await OnTreeChanged.InvokeAsync();
         DragAndDropService.DraggedNode = null;
+        DraggingOverNode = null;
         DraggingOverIndex = -1;
     }
 
     private void OnDragEnter(int index) => DraggingOverIndex = index;
     private void OnDragLeave() => DraggingOverIndex = -1;
 
+    private void OnDragEnterNode() => DraggingOverNode = Node;
+    private void OnDragLeaveNode() => DraggingOverNode = null;
+
     // Helper to get CSS class for the drop zone
     private string GetDropZoneClass(int index) =>
         DraggingOverIndex == index ? "drop-zone active" : "drop-zone";
 
+    private string GetDropZoneNodeClass() =>
+        DraggingOverNode == Node && DragAndDropService.DraggedNode != Node ? "drop-zone-node active" : "drop-zone-node";
+
     private async Task ShowEditUserModal()
     {
         await editModal.ShowAsync();
+        editContext = new EditContext(Node.Root);
     }
 
     private async Task SaveUser()

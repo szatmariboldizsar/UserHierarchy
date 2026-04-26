@@ -28,7 +28,38 @@
     border: 2px dashed #3498db;
 }
 
+.drop-zone-node {
+    background-color: transparent;
+    transition: height 0.3s ease, background-color 0.3s ease, margin 0.3s ease;
+    border-radius: 4px;
+    position: relative;
+    z-index: 10;
+}
+
+.drop-zone-node.active {
+    background-color: rgba(52, 152, 219, 0.3);
+    height: 50px;
+    border-radius: 4px;
+    border: 2px dashed #3498db;
+}
+
 .children-list {
     list-style: none;
     padding-left: 1.2rem;
+}
+
+.input-validation {
+    min-height: 3.9rem;
+}
+
+.valid.modified:not([type=checkbox]) {
+    outline: 1px solid #26b050;
+}
+
+.invalid {
+    outline: 1px solid red;
+}
+
+.validation-message {
+    color: red;
 }

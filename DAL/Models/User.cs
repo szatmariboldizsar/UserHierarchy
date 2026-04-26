@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using DAL.Validation;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -12,15 +13,17 @@ namespace DAL.Models
         [Key]
         public long Id { get; set; }
 
-        [Required]
+        [Required(ErrorMessage = "Username is required")]
+        [UniqueUsername(ErrorMessage = "Username is taken")]
         [MaxLength(100)]
         public required string Username { get; set; }
 
-        [Required]
+        [Required(ErrorMessage = "Full Name is required")]
         [MaxLength(200)]
         public required string FullName { get; set; }
 
-        [Required]
+        [Required(ErrorMessage = "Email is required")]
+        [EmailAddress(ErrorMessage = "Invalid email address")]
         [MaxLength(200)]
         public required string Email { get; set; }
 

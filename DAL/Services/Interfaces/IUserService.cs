@@ -21,6 +21,6 @@ namespace DAL.Services.Interfaces
 
         Task<UserNode> GetUserNodeForUserAsync(User? user);
 
-        Task<bool> IsUsernameUniqueAsync(string username);
+        bool IsUsernameUnique(User user);
     }
 }

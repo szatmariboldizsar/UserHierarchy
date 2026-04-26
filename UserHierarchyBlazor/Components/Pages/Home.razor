@@ -9,19 +9,33 @@
 
 <div class="main-div">
     <h3>User Hierarchy</h3>
-    <Modal @ref="modal" Title="Add User">
+    <Modal @ref="modal" Title="Edit User">
         <BodyTemplate>
-            <div class="mb-3">Username:</div>
-            <TextInput @bind-Value="username" Placeholder="Enter Username" />
-            <div class="mb-3">Full Name:</div>
-            <TextInput @bind-Value="fullName" Placeholder="Enter Full Name" />
-            <div class="mb-3">Email:</div>
-            <TextInput @bind-Value="email" Placeholder="Enter Email" />
+            <EditForm Model="newUser" OnValidSubmit="SaveUser">
+                <DataAnnotationsValidator />
+            
+                <label>Username:</label>
+                <div class="input-validation">
+                    <TextInput @bind-Value="newUser.Username" Placeholder="Enter Username" />
+                    <ValidationMessage For="@(() => newUser.Username)" />
+                </div>
+                <label>Full Name:</label>
+                <div class="mb-1 input-validation">
+                    <TextInput @bind-Value="newUser.FullName" Placeholder="Enter Full Name" />
+                    <ValidationMessage For="@(() => newUser.FullName)" />
+                </div>
+                <label>Email:</label>
+                <div class="mb-1 input-validation">
+                    <TextInput @bind-Value="newUser.Email" Placeholder="Enter Email" />
+                    <ValidationMessage For="@(() => newUser.Email)" />
+                </div>
+
+                <div class="mt-4 d-flex justify-content-end border-top pt-3">
+                    <Button Color="ButtonColor.Secondary" @onclick="HideAddUserModal" Class="me-2">Cancel</Button>
+                    <Button Color="ButtonColor.Primary" Type="ButtonType.Submit">Save</Button>
+                </div>
+            </EditForm>
         </BodyTemplate>
-        <FooterTemplate>
-            <Button Color="ButtonColor.Secondary" @onclick="HideAddUserModal">Close</Button>
-            <Button Color="ButtonColor.Primary" @onclick="SaveUser">Save</Button>
-        </FooterTemplate>
     </Modal>
 
     <Button Color="ButtonColor.Primary" @onclick="ShowAddUserModal">Add User</Button>
@@ -39,9 +53,7 @@
 
     private Modal modal = default!;
 
-    private string username = string.Empty;
-    private string fullName = string.Empty;
-    private string email = string.Empty;
+    private User newUser = new User() { Username = string.Empty, FullName = string.Empty, Email = string.Empty };
 
     private List<ToastMessage> messages = new List<ToastMessage>();
 
@@ -65,19 +77,12 @@
 
     private async Task SaveUser()
     {
-        User user = new User
-        {
-            Username = username,
-            FullName = fullName,
-            Email = email
-        };
-
         UserHierarchy userHierarchy = new UserHierarchy
         {
             ParentId = null,
             SortOrder = rootNode.Children.Count
         };
-        bool success = await userService.InsertUserAsync(user,userHierarchy);
+        bool success = await userService.InsertUserAsync(newUser,userHierarchy);
         if (success)
         {
             ToastMessage toastMessage = new ToastMessage
@@ -85,7 +90,7 @@
                 Type = ToastType.Success,
                 Title = "Add User",
                 HelpText = $"{DateTime.Now}",
-                Message = $"User '{user.Username}' added successfully! DateTime: {DateTime.Now}",
+                Message = $"User '{newUser.Username}' added successfully! DateTime: {DateTime.Now}",
             };
             messages.Add(toastMessage);
         }
@@ -96,22 +101,18 @@
                 Type = ToastType.Danger,
                 Title = "Add User",
                 HelpText = $"{DateTime.Now}",
-                Message = $"Failed to add user '{user.Username}'. DateTime: {DateTime.Now}",
+                Message = $"Failed to add user '{newUser.Username}'. DateTime: {DateTime.Now}",
             };
             messages.Add(toastMessage);
         }
         modal.HideAsync();
         await RefreshTree();
-        username = string.Empty;
-        fullName = string.Empty;
-        email = string.Empty;
+        newUser = new User() { Username = string.Empty, FullName = string.Empty, Email = string.Empty };
     }
 
     private async Task HideAddUserModal()
     {
         await modal.HideAsync();
-        username = string.Empty;
-        fullName = string.Empty;
-        email = string.Empty;
+        newUser = new User() { Username = string.Empty, FullName = string.Empty, Email = string.Empty };
     }
 }

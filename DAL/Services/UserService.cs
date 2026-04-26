@@ -50,7 +50,15 @@ namespace DAL.Services
         {
             try
             {
+                List<long> childUserIds = await _dbContext.UserHierarchy.Where(uh => uh.ParentId == user.Id).Select(uh => uh.UserId).ToListAsync();
+
                 if (user.Id == newUserHierarchy.ParentId)
+                {
+                    return false;
+                }
+
+                // Prevent moving a user under one of its own children, which would create a cycle in the hierarchy
+                if (newUserHierarchy.ParentId != null && childUserIds.Contains(newUserHierarchy.ParentId.Value))
                 {
                     return false;
                 }
@@ -191,9 +199,9 @@ namespace DAL.Services
         }
 
         // Checks if a given username is unique in the database.
-        public async Task<bool> IsUsernameUniqueAsync(string username)
+        public bool IsUsernameUnique(User user)
         {
-            return !await _dbContext.User.Where(u => u.Username == username).AnyAsync();
+            return !_dbContext.User.Where(u => u.Username == user.Username && u.Id != user.Id).Any();
         }
     }
 }
