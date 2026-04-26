@@ -1,26 +1,89 @@
 ﻿@page "/"
+@using BlazorBootstrap
 @using DAL.DTOs
 @using DAL.Models
 @using DAL.Services.Interfaces
 @using UserHierarchyBlazor.Components.Shared
 @inject IUserService userService
+@rendermode InteractiveServer
 
 <h3>User Hierarchy</h3>
+<Modal @ref="modal" Title="Add User">
+    <BodyTemplate>
+        <div class="mb-3">Username:</div>
+        <TextInput @bind-Value="username" Placeholder="Enter Username" />
+        <div class="mb-3">Full Name:</div>
+        <TextInput @bind-Value="fullName" Placeholder="Enter Full Name" />
+        <div class="mb-3">Email:</div>
+        <TextInput @bind-Value="email" Placeholder="Enter Email" />
+    </BodyTemplate>
+    <FooterTemplate>
+        <Button Color="ButtonColor.Secondary" @onclick="HideAddUserModal">Close</Button>
+        <Button Color="ButtonColor.Primary" @onclick="SaveUser">Save</Button>
+    </FooterTemplate>
+</Modal>
 
-<TreeItem Node="rootNode" OnTreeChanged="RefreshTree" />
+<Button Color="ButtonColor.Primary" @onclick="ShowAddUserModal">Add User</Button>
 
+@if (rootNode is not null)
+{
+    <TreeItem Node="rootNode" OnTreeChanged="RefreshTree" />
+}
 
 @code {
     private UserNode? rootNode;
 
+    private Modal modal = default!;
+
+    private string username = string.Empty;
+    private string fullName = string.Empty;
+    private string email = string.Empty;
+
     protected async override Task OnInitializedAsync()
     {
         rootNode = await userService.GetUserNodesAsync();
+        rootNode.IsExpanded = true; // Expand root by default
     }
 
     private async Task RefreshTree()
     {
         rootNode = await userService.GetUserNodesAsync();
         StateHasChanged();
+    }
+
+
+    private async Task ShowAddUserModal()
+    {
+        await modal.ShowAsync();
+    }
+
+    private async Task SaveUser()
+    {
+        User user = new User
+        {
+            Username = username,
+            FullName = fullName,
+            Email = email
+        };
+
+        UserHierarchy userHierarchy = new UserHierarchy
+        {
+            ParentId = null,
+            SortOrder = rootNode.Children.Count
+        };
+        await userService.InsertUser(user,userHierarchy);
+        modal.HideAsync();
+        await RefreshTree();
+        username = string.Empty;
+        fullName = string.Empty;
+        email = string.Empty;
+    }
+
+    private async Task HideAddUserModal()
+    {
+        await modal.HideAsync();
+        username = string.Empty;
+        fullName = string.Empty;
+        email = string.Empty;
     }
 }
