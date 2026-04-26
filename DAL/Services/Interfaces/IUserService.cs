@@ -9,16 +9,18 @@ namespace DAL.Services.Interfaces
 {
     public interface IUserService
     {
-        Task<bool> InsertUser(User user, UserHierarchy userHierarchy);
+        Task<bool> InsertUserAsync(User user, UserHierarchy userHierarchy);
 
-        Task<bool> MoveUser(User user, UserHierarchy newUserHierarchy);
+        Task<bool> MoveUserAsync(User user, UserHierarchy newUserHierarchy);
 
         Task<bool> UpdateUserAsync(User user);
+
+        Task<bool> DeleteUserAsync(UserNode node);
 
         Task<UserNode> GetUserNodesAsync();
 
         Task<UserNode> GetUserNodeForUserAsync(User? user);
 
-        Task<bool> IsUsernameUnique(string username);
+        Task<bool> IsUsernameUniqueAsync(string username);
     }
 }

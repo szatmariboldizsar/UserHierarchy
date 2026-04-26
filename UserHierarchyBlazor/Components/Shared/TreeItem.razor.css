@@ -1,10 +1,34 @@
-﻿.drop-zone {
-    height: 30px; /* For vertical list */
-    transition: background-color 0.2s;
+﻿.node {
+    list-style: none;
+}
+
+::deep .node-icon {
+    margin: 0.5rem;
+}
+
+::deep .node-action-button {
+    margin-left: 0.5rem;
+}
+
+.drop-zone {
+    height: 20px;
+    margin: -4px 0;
+    background-color: transparent;
+    transition: height 0.3s ease, background-color 0.3s ease, margin 0.3s ease;
+    border-radius: 4px;
+    position: relative;
+    z-index: 10;
 }
 
 .drop-zone.active {
-    background-color: #512bd4; /* MAUI Purple */
+    background-color: rgba(52, 152, 219, 0.3);
     height: 50px;
     border-radius: 4px;
+    margin: 5px 0;
+    border: 2px dashed #3498db;
+}
+
+.children-list {
+    list-style: none;
+    padding-left: 1.2rem;
 }

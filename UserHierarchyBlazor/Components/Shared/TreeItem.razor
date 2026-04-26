@@ -1,4 +1,5 @@
-﻿@using DAL.DTOs
+﻿@using BlazorBootstrap
+@using DAL.DTOs
 @using DAL.Models
 @using DAL.Services.Interfaces
 @using UserHierarchyBlazor.Services
@@ -6,20 +7,59 @@
 @inject IUserService userService
 @rendermode InteractiveServer
 
-<li class="tree-node">
+<Modal @ref="editModal" Title="Edit User">
+    <BodyTemplate>
+        <div class="mb-3">Username:</div>
+        <TextInput @bind-Value="Node.Root.Username" Placeholder="Enter Username" />
+        <div class="mb-3">Full Name:</div>
+        <TextInput @bind-Value="Node.Root.FullName" Placeholder="Enter Full Name" />
+        <div class="mb-3">Email:</div>
+        <TextInput @bind-Value="Node.Root.Email" Placeholder="Enter Email" />
+    </BodyTemplate>
+    <FooterTemplate>
+        <Button Color="ButtonColor.Secondary" @onclick="HideEditUserModal">Cancel</Button>
+        <Button Color="ButtonColor.Primary" @onclick="SaveUser">Save</Button>
+    </FooterTemplate>
+</Modal>
+
+<ConfirmDialog @ref="deleteDialog" />
+
+<li class="node">
 
     <div draggable="@(Node.Root != null ? "true" : "false")"
         @ondragstart="HandleDragStart"
         @ondrop="HandleDropOnNode"
         @ondragover:preventDefault
         @onclick="() => Node.IsExpanded = !Node.IsExpanded" >
-        @(Node.Children.Any() ? (Node.IsExpanded ? "▼ " : "▶ ") : "• ")
+        @if (Node.Root != null)
+        {
+            @if (IsLastChild)
+            {
+                <Image Src="images/TreeParentChildConnectorEnd.png" Alt="Icon" Class="node-icon" />
+            }
+            else
+            {
+                <Image Src="images/TreeParentChildConnector.png" Alt="Icon" Class="node-icon" />
+            }
+        }
+
         @Node.Root?.FullName
+
+        @if (Node.Children.Any())
+        {
+            @(Node.IsExpanded ? " ▼ " : " ▶ ")
+            
+        }
+        @if (Node.Root != null)
+        {
+            <Button Color="ButtonColor.Warning" Outline="true" @onclick="ShowEditUserModal" Class="node-action-button">Edit <Icon Name="IconName.PencilSquare" /></Button>
+            <Button Color="ButtonColor.Danger" Outline="true" @onclick="DeleteUser" Class="node-action-button">Delete <Icon Name="IconName.Trash" /></Button>
+        }
     </div>
 
     @if (Node.IsExpanded)
     {
-        <ul>
+        <ul class="children-list">
             @for (int i = 0; i < Node.Children.Count; i++)
             {
                 int currentIndex = i;
@@ -30,7 +70,7 @@
                      @ondragover:preventDefault>
                 </div>
 
-                <TreeItem Node="Node.Children[i]" OnTreeChanged="OnTreeChanged" />
+                <TreeItem Node="Node.Children[i]" IsLastChild="i == Node.Children.Count - 1" OnTreeChanged="OnTreeChanged" />
 
                 @if (i == Node.Children.Count - 1)
                 {
@@ -46,6 +86,8 @@
     }
 </li>
 
+<Toasts class="p-3" Messages="messages" AutoHide="true" Delay="6000" Placement="ToastsPlacement.BottomRight" />
+
 @code {
     [Parameter]
     public required UserNode Node { get; set; }
@@ -53,7 +95,16 @@
     [Parameter]
     public EventCallback OnTreeChanged { get; set; }
 
+    [Parameter]
+    public bool IsLastChild { get; set; }
+
     public int DraggingOverIndex { get; set; } = -1;
+
+    private ConfirmDialog deleteDialog = default!;
+
+    private Modal editModal = default!;
+
+    private List<ToastMessage> messages = new List<ToastMessage>();
 
     private void HandleDragStart()
     {
@@ -85,7 +136,7 @@
             ParentId = Node.Root?.Id,
             SortOrder = index
         };
-        await userService.MoveUser(DragAndDropService.DraggedNode.Root, userHierarchy);
+        await userService.MoveUserAsync(DragAndDropService.DraggedNode.Root, userHierarchy);
 
         await OnTreeChanged.InvokeAsync();
         DragAndDropService.DraggedNode = null;
@@ -98,4 +149,86 @@
     // Helper to get CSS class for the drop zone
     private string GetDropZoneClass(int index) =>
         DraggingOverIndex == index ? "drop-zone active" : "drop-zone";
+
+    private async Task ShowEditUserModal()
+    {
+        await editModal.ShowAsync();
+    }
+
+    private async Task SaveUser()
+    {
+        bool success = await userService.UpdateUserAsync(Node.Root);
+        if (success)
+        {
+            ToastMessage toastMessage = new ToastMessage
+            {
+                Type = ToastType.Success,
+                Title = "Edit User",
+                HelpText = $"{DateTime.Now}",
+                Message = $"User '{Node.Root.Username}' edited successfully! DateTime: {DateTime.Now}",
+            };
+            messages.Add(toastMessage);
+        }
+        else
+        {
+            ToastMessage toastMessage = new ToastMessage
+            {
+                Type = ToastType.Danger,
+                Title = "Edit User",
+                HelpText = $"{DateTime.Now}",
+                Message = $"Failed to edit user '{Node.Root.Username}'. DateTime: {DateTime.Now}",
+            };
+            messages.Add(toastMessage);
+        }
+        editModal.HideAsync();
+        await OnTreeChanged.InvokeAsync();
+    }
+
+    private async Task HideEditUserModal()
+    {
+        await editModal.HideAsync();
+    }
+
+    private async Task DeleteUser()
+    {
+        ConfirmDialogOptions options = new ConfirmDialogOptions
+        {
+            YesButtonText = "Delete",
+            YesButtonColor = ButtonColor.Danger,
+            NoButtonText = "Cancel",
+            NoButtonColor = ButtonColor.Secondary
+        };
+
+        bool confirmation = await deleteDialog.ShowAsync(
+            title: "Delete User",
+            message1: $"Are you sure you want to delete user '{Node.Root?.FullName}'?",
+            confirmDialogOptions: options);
+
+        if (!confirmation) return;
+
+        bool success = await userService.DeleteUserAsync(Node);
+        if (success)
+        {
+            ToastMessage toastMessage = new ToastMessage
+            {
+                Type = ToastType.Success,
+                Title = "Delete User",
+                HelpText = $"{DateTime.Now}",
+                Message = $"User '{Node.Root.Username}' deleted successfully! DateTime: {DateTime.Now}",
+            };
+            messages.Add(toastMessage);
+        }
+        else
+        {
+            ToastMessage toastMessage = new ToastMessage
+            {
+                Type = ToastType.Danger,
+                Title = "Delete User",
+                HelpText = $"{DateTime.Now}",
+                Message = $"Failed to delete user '{Node.Root.Username}'. DateTime: {DateTime.Now}",
+            };
+            messages.Add(toastMessage);
+        }
+        await OnTreeChanged.InvokeAsync();
+    }
 }

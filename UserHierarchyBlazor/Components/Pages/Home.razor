@@ -7,28 +7,32 @@
 @inject IUserService userService
 @rendermode InteractiveServer
 
-<h3>User Hierarchy</h3>
-<Modal @ref="modal" Title="Add User">
-    <BodyTemplate>
-        <div class="mb-3">Username:</div>
-        <TextInput @bind-Value="username" Placeholder="Enter Username" />
-        <div class="mb-3">Full Name:</div>
-        <TextInput @bind-Value="fullName" Placeholder="Enter Full Name" />
-        <div class="mb-3">Email:</div>
-        <TextInput @bind-Value="email" Placeholder="Enter Email" />
-    </BodyTemplate>
-    <FooterTemplate>
-        <Button Color="ButtonColor.Secondary" @onclick="HideAddUserModal">Close</Button>
-        <Button Color="ButtonColor.Primary" @onclick="SaveUser">Save</Button>
-    </FooterTemplate>
-</Modal>
+<div class="main-div">
+    <h3>User Hierarchy</h3>
+    <Modal @ref="modal" Title="Add User">
+        <BodyTemplate>
+            <div class="mb-3">Username:</div>
+            <TextInput @bind-Value="username" Placeholder="Enter Username" />
+            <div class="mb-3">Full Name:</div>
+            <TextInput @bind-Value="fullName" Placeholder="Enter Full Name" />
+            <div class="mb-3">Email:</div>
+            <TextInput @bind-Value="email" Placeholder="Enter Email" />
+        </BodyTemplate>
+        <FooterTemplate>
+            <Button Color="ButtonColor.Secondary" @onclick="HideAddUserModal">Close</Button>
+            <Button Color="ButtonColor.Primary" @onclick="SaveUser">Save</Button>
+        </FooterTemplate>
+    </Modal>
 
-<Button Color="ButtonColor.Primary" @onclick="ShowAddUserModal">Add User</Button>
+    <Button Color="ButtonColor.Primary" @onclick="ShowAddUserModal">Add User</Button>
 
-@if (rootNode is not null)
-{
-    <TreeItem Node="rootNode" OnTreeChanged="RefreshTree" />
-}
+    @if (rootNode is not null)
+    {
+        <TreeItem Node="rootNode" OnTreeChanged="RefreshTree" />
+    }
+
+    <Toasts class="p-3" Messages="messages" AutoHide="true" Delay="6000" Placement="ToastsPlacement.BottomRight" />
+</div>
 
 @code {
     private UserNode? rootNode;
@@ -38,6 +42,8 @@
     private string username = string.Empty;
     private string fullName = string.Empty;
     private string email = string.Empty;
+
+    private List<ToastMessage> messages = new List<ToastMessage>();
 
     protected async override Task OnInitializedAsync()
     {
@@ -71,7 +77,29 @@
             ParentId = null,
             SortOrder = rootNode.Children.Count
         };
-        await userService.InsertUser(user,userHierarchy);
+        bool success = await userService.InsertUserAsync(user,userHierarchy);
+        if (success)
+        {
+            ToastMessage toastMessage = new ToastMessage
+            {
+                Type = ToastType.Success,
+                Title = "Add User",
+                HelpText = $"{DateTime.Now}",
+                Message = $"User '{user.Username}' added successfully! DateTime: {DateTime.Now}",
+            };
+            messages.Add(toastMessage);
+        }
+        else
+        {
+            ToastMessage toastMessage = new ToastMessage
+            {
+                Type = ToastType.Danger,
+                Title = "Add User",
+                HelpText = $"{DateTime.Now}",
+                Message = $"Failed to add user '{user.Username}'. DateTime: {DateTime.Now}",
+            };
+            messages.Add(toastMessage);
+        }
         modal.HideAsync();
         await RefreshTree();
         username = string.Empty;

@@ -18,7 +18,7 @@ namespace DAL.Services
         }
 
         // Inserts a new user into the database and updates the sort order of existing users in the same hierarchy level.
-        public async Task<bool> InsertUser(User user, UserHierarchy userHierarchy)
+        public async Task<bool> InsertUserAsync(User user, UserHierarchy userHierarchy)
         {
             using var transaction = await _dbContext.Database.BeginTransactionAsync();
             try
@@ -46,7 +46,7 @@ namespace DAL.Services
         }
 
         // Moves a user to a new position in the hierarchy and updates the sort order of affected users accordingly.
-        public async Task<bool> MoveUser(User user, UserHierarchy newUserHierarchy)
+        public async Task<bool> MoveUserAsync(User user, UserHierarchy newUserHierarchy)
         {
             try
             {
@@ -129,6 +129,45 @@ namespace DAL.Services
             }
         }
 
+        public async Task<bool> DeleteUserAsync(UserNode node)
+        {
+            using var transaction = await _dbContext.Database.BeginTransactionAsync();
+            try
+            {
+                UserHierarchy? userHierarchy = await _dbContext.UserHierarchy.Where(uh => uh.UserId == node.Root.Id).FirstOrDefaultAsync();
+                if (userHierarchy is null)
+                {
+                    return false;
+                }
+
+                int sortOrder = userHierarchy.SortOrder;
+
+                foreach (UserNode child in node.Children)
+                {
+                    await MoveUserAsync(child.Root, new UserHierarchy { UserId = child.Root.Id, ParentId = userHierarchy.ParentId, SortOrder = sortOrder });
+                    sortOrder++;
+                }
+
+                _dbContext.User.Remove(node.Root);
+                _dbContext.UserHierarchy.Remove(userHierarchy);
+
+                List<UserHierarchy> usersToMove = await _dbContext.UserHierarchy.Where(uh => uh.ParentId == userHierarchy.ParentId && uh.SortOrder > userHierarchy.SortOrder).ToListAsync();
+                foreach (UserHierarchy userToMove in usersToMove)
+                {
+                    userToMove.SortOrder--;
+                }
+
+                await _dbContext.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return true;
+            }
+            catch
+            {
+                await transaction.RollbackAsync();
+                return false;
+            }
+        }
+
         // Retrieves the entire user hierarchy starting from the root nodes (users with no parent).
         public async Task<UserNode> GetUserNodesAsync()
         {
@@ -151,7 +190,7 @@ namespace DAL.Services
         }
 
         // Checks if a given username is unique in the database.
-        public async Task<bool> IsUsernameUnique(string username)
+        public async Task<bool> IsUsernameUniqueAsync(string username)
         {
             return !await _dbContext.User.Where(u => u.Username == username).AnyAsync();
         }
