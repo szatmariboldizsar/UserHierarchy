@@ -50,7 +50,7 @@ namespace DAL.Services
         {
             try
             {
-                List<long> childUserIds = await _dbContext.UserHierarchy.Where(uh => uh.ParentId == user.Id).Select(uh => uh.UserId).ToListAsync();
+                List<long> childUserIds = await GetChildUserIds(user.Id);
 
                 if (user.Id == newUserHierarchy.ParentId)
                 {
@@ -203,6 +203,18 @@ namespace DAL.Services
         public bool IsUsernameUnique(User user)
         {
             return !_dbContext.User.Where(u => u.Username == user.Username && u.Id != user.Id).Any();
+        }
+
+        private async Task<List<long>> GetChildUserIds(long? userId)
+        {
+            long? parentId = userId;
+            List<long> childUserIds = await _dbContext.UserHierarchy.Where(uh => uh.ParentId == parentId).Select(uh => uh.UserId).ToListAsync();
+            foreach (long childUserId in childUserIds)
+            {
+                List<long> grandChildUserIds = await GetChildUserIds(childUserId);
+                childUserIds.AddRange(grandChildUserIds);
+            }
+            return childUserIds;
         }
     }
 }
