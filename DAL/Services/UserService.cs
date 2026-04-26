@@ -20,6 +20,7 @@ namespace DAL.Services
         // Inserts a new user into the database and updates the sort order of existing users in the same hierarchy level.
         public async Task<bool> InsertUser(User user, UserHierarchy userHierarchy)
         {
+            using var transaction = await _dbContext.Database.BeginTransactionAsync();
             try
             {
                 List<UserHierarchy> usersToMove = await _dbContext.UserHierarchy.Where(uh => uh.ParentId == userHierarchy.ParentId && uh.SortOrder >= userHierarchy.SortOrder).ToListAsync();
@@ -28,14 +29,18 @@ namespace DAL.Services
                     userToMove.SortOrder++;
                 }
 
+                user.CreatedAt = DateTime.Now;
                 _dbContext.User.Add(user);
+                await _dbContext.SaveChangesAsync();
                 userHierarchy.UserId = user.Id;
                 _dbContext.UserHierarchy.Add(userHierarchy);
                 await _dbContext.SaveChangesAsync();
+                await transaction.CommitAsync();
                 return true;
             }
             catch
             {
+                await transaction.RollbackAsync();
                 return false;
             }
         }
@@ -50,25 +55,56 @@ namespace DAL.Services
                     return false;
                 }
 
-                UserHierarchy? currentUserHierarchy = await _dbContext.UserHierarchy.Where(uh => uh.UserId == user.Id).FirstOrDefaultAsync();
-                if (currentUserHierarchy == null)
+
+                UserHierarchy? oldUserHierarchy = await _dbContext.UserHierarchy.Where(uh => uh.UserId == user.Id).FirstOrDefaultAsync();
+                if (oldUserHierarchy == null)
                 {
                     return false;
                 }
 
-                List<UserHierarchy> usersToMove = await _dbContext.UserHierarchy.Where(uh => uh.ParentId == currentUserHierarchy.ParentId && uh.SortOrder > newUserHierarchy.SortOrder).ToListAsync();
-                foreach (UserHierarchy userToMove in usersToMove)
+                if (oldUserHierarchy.ParentId == newUserHierarchy.ParentId)
                 {
-                    userToMove.SortOrder--;
-                }
+                    // Moving within the same parent, just update sort order, depending on whether we're moving up or down
 
-                usersToMove = await _dbContext.UserHierarchy.Where(uh => uh.ParentId == newUserHierarchy.ParentId && uh.SortOrder >= newUserHierarchy.SortOrder).ToListAsync();
-                foreach (UserHierarchy userToMove in usersToMove)
-                {
-                    userToMove.SortOrder++;
+                    if (newUserHierarchy.SortOrder > oldUserHierarchy.SortOrder)
+                    {
+                        // Move up users that are between the current position and the new position
+                        List<UserHierarchy> usersToMove = await _dbContext.UserHierarchy.Where(uh => uh.ParentId == oldUserHierarchy.ParentId && uh.SortOrder > oldUserHierarchy.SortOrder && uh.SortOrder <= newUserHierarchy.SortOrder).ToListAsync();
+                        foreach (UserHierarchy userToMove in usersToMove)
+                        {
+                            userToMove.SortOrder--;
+                        }
+                    }
+                    else
+                    {
+                        // Move down users that are between the new position and the current position
+                        List<UserHierarchy> usersToMove = await _dbContext.UserHierarchy.Where(uh => uh.ParentId == newUserHierarchy.ParentId && uh.SortOrder < oldUserHierarchy.SortOrder && uh.SortOrder >= newUserHierarchy.SortOrder).ToListAsync();
+                        foreach (UserHierarchy userToMove in usersToMove)
+                        {
+                            userToMove.SortOrder++;
+                        }
+                    }
                 }
-                currentUserHierarchy.ParentId = newUserHierarchy.ParentId;
-                currentUserHierarchy.SortOrder = newUserHierarchy.SortOrder;
+                else
+                {
+                    // Moving to a different parent, need to update sort order for both old and new branches
+
+                    // Update sort order for old parent branch, move up users that were below the current user
+                    List<UserHierarchy> usersToMove = await _dbContext.UserHierarchy.Where(uh => uh.ParentId == oldUserHierarchy.ParentId && uh.SortOrder > oldUserHierarchy.SortOrder).ToListAsync();
+                    foreach (UserHierarchy userToMove in usersToMove)
+                    {
+                        userToMove.SortOrder--;
+                    }
+
+                    // Update sort order for new parent branch, move down users that are at or below the new position
+                    usersToMove = await _dbContext.UserHierarchy.Where(uh => uh.ParentId == newUserHierarchy.ParentId && uh.SortOrder >= newUserHierarchy.SortOrder).ToListAsync();
+                    foreach (UserHierarchy userToMove in usersToMove)
+                    {
+                        userToMove.SortOrder++;
+                    }
+                }
+                oldUserHierarchy.ParentId = newUserHierarchy.ParentId;
+                oldUserHierarchy.SortOrder = newUserHierarchy.SortOrder;
                 await _dbContext.SaveChangesAsync();
                 return true;
             }
@@ -109,6 +145,7 @@ namespace DAL.Services
             {
                 User child = await _dbContext.User.FindAsync(userHierarchy.UserId);
                 UserNode childNode = await GetUserNodeForUserAsync(child);
+                userNode.Children.Add(childNode);
             }
             return userNode;
         }
