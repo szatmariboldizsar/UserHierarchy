@@ -149,6 +149,7 @@
 
     private async Task HandleDropAt(int index)
     {
+        // Drop on self or no node being dragged - ignore
         if (DragAndDropService.DraggedNode == null || DragAndDropService.DraggedNode == Node)
         {
             DraggingOverNode = null;
@@ -158,9 +159,10 @@
 
         if (Node.Root?.Id == DragAndDropService.DraggedNode.UserHierarchy.ParentId && index > DragAndDropService.DraggedNode.UserHierarchy.SortOrder)
         {
-            index -= 1; // Adjust index if dragging within the same parent to higher position
+            index -= 1; // Adjust index if dragging within the same branch to higher position
         }
 
+        // Prevent dropping into the same branch at the same position
         if (Node.Root?.Id == DragAndDropService.DraggedNode.UserHierarchy.ParentId && DragAndDropService.DraggedNode.UserHierarchy.SortOrder == index)
         {
             DraggingOverNode = null;

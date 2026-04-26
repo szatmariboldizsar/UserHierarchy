@@ -137,6 +137,7 @@ namespace DAL.Services
             }
         }
 
+        // Deletes a user from the database and moves its children up one level in the hierarchy.
         public async Task<bool> DeleteUserAsync(UserNode node)
         {
             using var transaction = await _dbContext.Database.BeginTransactionAsync();
